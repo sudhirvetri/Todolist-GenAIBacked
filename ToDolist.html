@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas To-Do List</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        .container {
+            max-width: 600px;
+        }
+
+        /* Custom styles for animations */
+        .sparkle-btn {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sparkle-btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 5px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .sparkle-btn:active::after {
+            transform: translate(-50%, -50%) scale(20);
+            opacity: 1;
+            transition: none;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <!-- Fixed Header for Progress Bar -->
+    <div class="fixed top-0 left-0 right-0 bg-white shadow-md z-10 p-4">
+        <div class="container mx-auto max-w-lg">
+            <div class="flex items-center justify-between mb-2">
+                <h1 class="text-3xl font-bold text-gray-800">My Tasks</h1>
+                <div id="userIdDisplay" class="text-sm text-gray-500 font-medium truncate">User ID: Loading...</div>
+            </div>
+
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="text-lg font-semibold text-gray-700">Progress</h2>
+                <span id="progressText" class="text-sm font-medium text-gray-600">0% Complete</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2 overflow-hidden">
+                <div id="progressBar" class="bg-blue-500 h-2.5 rounded-full transition-all duration-500 ease-out"
+                    style="width: 0%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Container -->
+    <div class="container bg-white rounded-xl shadow-lg p-8 m-4 mt-32">
+
+        <!-- Topic and Task Views -->
+        <div id="topicsView">
+            <div class="flex flex-col md:flex-row items-center gap-2 mb-6">
+                <input type="text" id="topicInput" placeholder="Add a new topic (e.g., 'Study')"
+                    class="flex-grow rounded-md px-4 py-3 bg-gray-50 text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button id="addTopicBtn"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-md transition-colors duration-200 ease-in-out">
+                    Add Topic
+                </button>
+            </div>
+            <div class="flex flex-col md:flex-row items-center gap-2 mb-6">
+                <input type="text" id="planInput" placeholder="Generate a plan (e.g., AWS certification plan)"
+                    class="flex-grow rounded-md px-4 py-3 bg-gray-50 text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                <button id="generatePlanBtn"
+                    class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-md transition-colors duration-200 ease-in-out sparkle-btn">
+                    Generate Plan ✨
+                </button>
+            </div>
+            <button id="showTodayBtn"
+                class="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-6 rounded-md mb-6 transition-colors duration-200 ease-in-out">
+                Today's Tasks
+            </button>
+            <div id="topicList" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Topic cards will be rendered here -->
+            </div>
+        </div>
+
+        <div id="tasksView" class="hidden">
+            <button id="backToTopicsBtn"
+                class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-md mb-4 transition-colors duration-200 ease-in-out">
+                ← Back to Topics
+            </button>
+
+            <!-- This is the editable topic title section -->
+            <div id="currentTopicTitleContainer" class="flex items-center justify-between mb-4 group">
+                <h2 id="currentTopicTitle" class="text-2xl font-semibold text-gray-800 flex-grow"></h2>
+                <button id="editTopicTitleBtn"
+                    class="p-1 rounded-full text-gray-400 hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="flex flex-col md:flex-row items-center gap-2 mb-6">
+                <input type="text" id="taskInput" placeholder="Add a new task..."
+                    class="flex-grow rounded-md px-4 py-3 bg-gray-50 text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="date" id="taskDueDate"
+                    class="rounded-md px-4 py-3 bg-gray-50 text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button id="addTaskBtn"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-md transition-colors duration-200 ease-in-out">
+                    Add
+                </button>
+            </div>
+
+            <div id="taskList">
+                <!-- Tasks will be rendered here -->
+            </div>
+        </div>
+
+        <div id="loadingIndicator" class="text-center text-gray-500 my-4 hidden">
+            <svg class="animate-spin h-6 w-6 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none"
+                viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+            </svg>
+        </div>
+
+        <div id="noTasksMessage" class="text-center text-gray-400 mt-8 hidden">
+            <p>No tasks yet! Add one above.</p>
+        </div>
+        <div id="noTopicsMessage" class="text-center text-gray-400 mt-8 hidden">
+            <p>No topics yet! Add one above.</p>
+        </div>
+
+        <button id="summarizeBtn"
+            class="w-full bg-slate-200 hover:bg-slate-300 text-gray-800 font-semibold py-3 px-6 rounded-md mt-6 transition-colors duration-200 ease-in-out sparkle-btn">
+            Summarize Tasks ✨
+        </button>
+
+        <div id="summaryOutput" class="mt-4 p-4 bg-slate-50 rounded-md text-gray-800 hidden"></div>
+
+        <!-- Custom Modal for confirmations and AI output -->
+        <div id="modal" class="fixed inset-0 bg-gray-800 bg-opacity-75 z-50 items-center justify-center hidden">
+            <div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-sm w-full">
+                <h3 id="modalTitle" class="text-lg font-semibold text-gray-900 mb-2"></h3>
+                <p id="modalMessage" class="text-sm text-gray-600 mb-4"></p>
+                <div class="flex justify-end space-x-2">
+                    <button id="modalConfirm"
+                        class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md">Confirm</button>
+                    <button id="modalCancel"
+                        class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-md">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, updateDoc, getDocs, writeBatch, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Set Firebase log level for debugging
+        setLogLevel('Debug');
+
+        // Global variables for Firebase access, provided by the Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db, auth;
+        let userId = null;
+        let isAuthReady = false;
+        let allTasks = []; // Cache all tasks to avoid multiple Firestore reads
+
+        let currentTopic = null;
+        const TODAY_DATE = new Date().toISOString().slice(0, 10);
+
+        const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=";
+        const API_KEY = "";
+
+        // UI Elements
+        const topicsView = document.getElementById('topicsView');
+        const tasksView = document.getElementById('tasksView');
+        const topicList = document.getElementById('topicList');
+        const taskList = document.getElementById('taskList');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const noTasksMessage = document.getElementById('noTasksMessage');
+        const noTopicsMessage = document.getElementById('noTopicsMessage');
+        const userIdDisplay = document.getElementById('userIdDisplay');
+        const summarizeBtn = document.getElementById('summarizeBtn');
+        const summaryOutput = document.getElementById('summaryOutput');
+        const backToTopicsBtn = document.getElementById('backToTopicsBtn');
+        const currentTopicTitle = document.getElementById('currentTopicTitle');
+        const currentTopicTitleContainer = document.getElementById('currentTopicTitleContainer');
+        const editTopicTitleBtn = document.getElementById('editTopicTitleBtn');
+        const showTodayBtn = document.getElementById('showTodayBtn');
+
+        const topicInput = document.getElementById('topicInput');
+        const addTopicBtn = document.getElementById('addTopicBtn');
+        const taskInput = document.getElementById('taskInput');
+        const taskDueDate = document.getElementById('taskDueDate');
+        const addTaskBtn = document.getElementById('addTaskBtn');
+
+        const planInput = document.getElementById('planInput');
+        const generatePlanBtn = document.getElementById('generatePlanBtn');
+
+        // Progress bar elements
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+
+        // Modal elements
+        const modal = document.getElementById('modal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalConfirm = document.getElementById('modalConfirm');
+        const modalCancel = document.getElementById('modalCancel');
+
+        // Function to show the custom modal
+        const showModal = (title, message, onConfirm) =>
+        {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modal.style.display = 'flex';
+
+            const confirmBtnClone = modalConfirm.cloneNode(true);
+            modalConfirm.parentNode.replaceChild(confirmBtnClone, modalConfirm);
+
+            const cancelBtnClone = modalCancel.cloneNode(true);
+            modalCancel.parentNode.replaceChild(cancelBtnClone, modalCancel);
+
+            document.getElementById('modalConfirm').addEventListener('click', () =>
+            {
+                onConfirm();
+                modal.style.display = 'none';
+            });
+            document.getElementById('modalCancel').addEventListener('click', () =>
+            {
+                modal.style.display = 'none';
+            });
+        };
+
+        const updateProgressBar = (tasks) =>
+        {
+            if (tasks.length === 0)
+            {
+                progressBar.style.width = '0%';
+                progressText.textContent = '0% Complete';
+                return;
+            }
+            const totalTasks = tasks.length;
+            const completedTasks = tasks.filter(t => t.completed).length;
+            const progressPercentage = (completedTasks / totalTasks) * 100;
+            progressBar.style.width = `${progressPercentage}%`;
+            progressText.textContent = `${Math.round(progressPercentage)}% Complete`;
+        };
+
+        // Sorts tasks by due date. Tasks with no due date are moved to the end.
+        const sortTasksByDueDate = (tasks) =>
+        {
+            return [...tasks].sort((a, b) =>
+            {
+                const dateA = a.dueDate || '9999-12-31';
+                const dateB = b.dueDate || '9999-12-31';
+                return dateA.localeCompare(dateB);
+            });
+        };
+
+        const renderTopicCards = (tasksByTopic) =>
+        {
+            topicList.innerHTML = '';
+            noTopicsMessage.classList.add('hidden');
+            if (Object.keys(tasksByTopic).length === 0)
+            {
+                noTopicsMessage.classList.remove('hidden');
+            }
+
+            const sortedTopics = Object.keys(tasksByTopic).sort();
+
+            sortedTopics.forEach(topic =>
+            {
+                const topicTasks = tasksByTopic[topic];
+                const totalTasks = topicTasks.length;
+                const completedTasks = topicTasks.filter(t => t.completed).length;
+                const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+                const card = document.createElement('div');
+                card.className = `bg-gray-50 rounded-lg shadow-md p-6 cursor-pointer transform transition-all duration-200 hover:scale-[1.03] hover:shadow-lg relative overflow-hidden`;
+
+                // Title and Edit Button Container
+                const titleContainer = document.createElement('div');
+                titleContainer.className = 'flex items-center justify-between group mb-2';
+
+                const h3 = document.createElement('h3');
+                h3.className = 'text-xl font-semibold text-gray-800 truncate flex-grow';
+                h3.textContent = topic;
+                titleContainer.appendChild(h3);
+
+                // New Edit Button
+                const editBtn = document.createElement('button');
+                editBtn.className = 'p-1 rounded-full text-gray-400 hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100';
+                editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>`;
+                titleContainer.appendChild(editBtn);
+
+                editBtn.onclick = (e) =>
+                {
+                    e.stopPropagation(); // Prevent card click
+                    const oldTopic = h3.textContent;
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = oldTopic;
+                    input.className = 'flex-grow rounded-md px-2 py-1 text-gray-800 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500';
+                    h3.replaceWith(input);
+                    input.focus();
+
+                    const saveEdit = async () =>
+                    {
+                        const newTopic = input.value.trim();
+                        if (newTopic === '' || newTopic === oldTopic)
+                        {
+                            input.replaceWith(h3);
+                            return;
+                        }
+                        await updateTopicName(oldTopic, newTopic);
+                        h3.textContent = newTopic;
+                        input.replaceWith(h3);
+                    };
+
+                    input.addEventListener('blur', saveEdit);
+                    input.addEventListener('keypress', (e) =>
+                    {
+                        if (e.key === 'Enter')
+                        {
+                            saveEdit();
+                        }
+                    });
+                };
+
+                card.prepend(titleContainer);
+
+                card.innerHTML += `
+                    <p class="text-sm text-gray-600">${totalTasks} tasks</p>
+                    <div class="mt-4 w-full bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-blue-500 h-2.5 rounded-full" style="width: ${progress}%;"></div>
+                    </div>
+                `;
+                card.onclick = () => showTasksForTopic(topic, topicTasks);
+                topicList.appendChild(card);
+            });
+        };
+
+        const showTopicsView = () =>
+        {
+            tasksView.classList.add('hidden');
+            topicsView.classList.remove('hidden');
+            currentTopic = null;
+            updateProgressBar(allTasks);
+        };
+
+        const showTasksForTopic = (topic, tasks) =>
+        {
+            topicsView.classList.add('hidden');
+            tasksView.classList.remove('hidden');
+            currentTopic = topic;
+            currentTopicTitle.textContent = topic;
+            const sortedTasks = sortTasksByDueDate(tasks);
+            renderTasks(sortedTasks);
+            updateProgressBar(sortedTasks);
+        };
+
+        const showTodaysTasks = () =>
+        {
+            const todayTasks = allTasks.filter(task => task.dueDate === TODAY_DATE);
+            topicsView.classList.add('hidden');
+            tasksView.classList.remove('hidden');
+            currentTopic = 'Today\'s Tasks';
+            currentTopicTitle.textContent = "Today's Tasks";
+            const sortedTasks = sortTasksByDueDate(todayTasks);
+            renderTasks(sortedTasks);
+            updateProgressBar(sortedTasks);
+        };
+
+        // helper to escape unsafe text when using innerHTML
+        const escapeHtml = (unsafe) =>
+        {
+            return String(unsafe)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        };
+
+        const renderTasks = (tasks) =>
+        {
+            taskList.innerHTML = '';
+            if (tasks.length === 0)
+            {
+                noTasksMessage.classList.remove('hidden');
+            } else
+            {
+                noTasksMessage.classList.add('hidden');
+                tasks.forEach(task =>
+                {
+                    const li = document.createElement('div');
+                    li.setAttribute('id', `task-${task.id}`);
+                    li.className = `flex items-center justify-between p-4 mb-3 bg-gray-50 rounded-md shadow-sm transition-all duration-200 ease-in-out transform hover:scale-[1.01] ${task.completed ? 'opacity-50 line-through' : ''} ${task.dueDate === TODAY_DATE ? 'border-orange-400 border-l-4' : ''}`;
+
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'flex-grow';
+
+                    // Use innerHTML safely for structured content but escape text
+                    contentDiv.innerHTML = `\n                        <div class="text-gray-800 text-lg">${escapeHtml(task.text)}</div>\n                        <div class="text-xs text-gray-500 mt-1">Due: ${escapeHtml(task.dueDate || 'No due date')}</div>\n                    `;
+
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'flex items-center space-x-2';
+
+                    // Toggle Button
+                    const toggleBtn = document.createElement('button');
+                    toggleBtn.className = `p-2 rounded-full transition-colors duration-200 ${task.completed ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-300 hover:bg-gray-400'}`;
+                    toggleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ${task.completed ? 'text-white' : 'text-gray-600'}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${task.completed ? 'M5 13l4 4L19 7' : 'M6 18L18 6M6 6l12 12'}" /></svg>`;
+                    toggleBtn.addEventListener('click', (e) =>
+                    {
+                        e.stopPropagation();
+                        toggleTask(task.id, task.completed);
+                    });
+
+                    // Edit Button
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'p-2 rounded-full bg-blue-500 hover:bg-blue-600 transition-colors duration-200';
+                    editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>`;
+                    editBtn.addEventListener('click', (e) =>
+                    {
+                        e.stopPropagation();
+                        makeTaskEditable(task.id, task.text, task.dueDate);
+                    });
+
+                    // Delete Button
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'p-2 rounded-full bg-red-500 hover:bg-red-600 transition-colors duration-200';
+                    deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-1.41-1.41-5.59 5.59-5.59-5.59L5 7l5.59 5.59L5 18l1.41 1.41 5.59-5.59 5.59 5.59L19 18l-5.59-5.59L19 7z" /></svg>`;
+                    deleteBtn.addEventListener('click', (e) =>
+                    {
+                        e.stopPropagation();
+                        showModal('Confirm Deletion', 'Are you sure you want to delete this task?', () => deleteTask(task.id));
+                    });
+
+                    actionsDiv.appendChild(toggleBtn);
+                    actionsDiv.appendChild(editBtn);
+                    actionsDiv.appendChild(deleteBtn);
+                    li.appendChild(contentDiv);
+                    li.appendChild(actionsDiv);
+                    taskList.appendChild(li);
+                });
+            }
+        };
+
+        const makeTaskEditable = (taskId, text, dueDate) =>
+        {
+            const taskElement = document.getElementById(`task-${taskId}`);
+            if (!taskElement) return;
+
+            // Add visual feedback to indicate editing state
+            taskElement.classList.remove('bg-gray-50', 'shadow-sm');
+            taskElement.classList.add('bg-blue-100', 'ring-2', 'ring-blue-500');
+
+            const contentDiv = taskElement.querySelector('div:first-child');
+            const actionsDiv = taskElement.querySelector('div:last-child');
+
+            // Clear existing content and buttons
+            contentDiv.innerHTML = '';
+            actionsDiv.innerHTML = '';
+
+            // Create new input fields
+            const textInput = document.createElement('input');
+            textInput.type = 'text';
+            textInput.value = text;
+            textInput.className = 'w-full rounded-md px-2 py-1 bg-white text-gray-800 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 mb-1';
+
+            const dateInput = document.createElement('input');
+            dateInput.type = 'date';
+            dateInput.value = dueDate;
+            dateInput.className = 'w-full rounded-md px-2 py-1 bg-white text-gray-800 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm';
+
+            // Create new buttons
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'p-2 rounded-full bg-green-500 hover:bg-green-600 transition-colors duration-200';
+            saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>`;
+            saveBtn.addEventListener('click', (e) =>
+            {
+                e.stopPropagation();
+                saveEditedTask(taskId, textInput.value, dateInput.value);
+            });
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'p-2 rounded-full bg-gray-300 hover:bg-gray-400 transition-colors duration-200';
+            cancelBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>`;
+            cancelBtn.addEventListener('click', (e) =>
+            {
+                e.stopPropagation();
+                // Re-render to exit edit mode and show original content
+                if (currentTopic)
+                {
+                    if (currentTopic === 'Today\'s Tasks')
+                    {
+                        showTodaysTasks();
+                    } else
+                    {
+                        showTasksForTopic(currentTopic, allTasks.filter(task => task.topic === currentTopic));
+                    }
+                } else
+                {
+                    renderTasks(sortTasksByDueDate(allTasks));
+                }
+            });
+
+            // Append new elements to the task item
+            contentDiv.appendChild(textInput);
+            contentDiv.appendChild(dateInput);
+
+            actionsDiv.appendChild(saveBtn);
+            actionsDiv.appendChild(cancelBtn);
+
+            textInput.focus();
+        };
+
+        const saveEditedTask = async (taskId, newText, newDueDate) =>
+        {
+            if (!isAuthReady)
+            {
+                console.error("Firebase not ready. Cannot save task.");
+                showModal('Error', 'Firebase is not ready. Please try again.', () => { });
+                return;
+            }
+            if (newText.trim() === '')
+            {
+                showModal('Error', 'Task text cannot be empty.', () => { });
+                return;
+            }
+            try
+            {
+                await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/tasks`, taskId), {
+                    text: newText,
+                    dueDate: newDueDate || ''
+                });
+                // Immediately update local cache and UI so user sees change without waiting for Firestore snapshot
+                const idx = allTasks.findIndex(t => t.id === taskId);
+                if (idx !== -1)
+                {
+                    allTasks[idx] = { ...allTasks[idx], text: newText, dueDate: newDueDate || '' };
+                }
+                // Re-render the current view
+                if (currentTopic)
+                {
+                    if (currentTopic === 'Today\'s Tasks')
+                    {
+                        const todayTasks = allTasks.filter(t => t.dueDate === TODAY_DATE);
+                        renderTasks(sortTasksByDueDate(todayTasks));
+                        updateProgressBar(todayTasks);
+                    } else
+                    {
+                        const topicTasks = allTasks.filter(t => t.topic === currentTopic);
+                        renderTasks(sortTasksByDueDate(topicTasks));
+                        updateProgressBar(topicTasks);
+                    }
+                } else
+                {
+                    renderTasks(sortTasksByDueDate(allTasks));
+                    updateProgressBar(allTasks);
+                }
+            } catch (e)
+            {
+                console.error("Error updating document: ", e);
+                showModal('Error', 'Failed to save changes. Please try again.', () => { });
+            }
+        };
+
+        const updateTopicName = async (oldTopic, newTopic) =>
+        {
+            if (!isAuthReady)
+            {
+                console.error("Firebase not ready. Cannot update topic.");
+                return;
+            }
+
+            try
+            {
+                const tasksRef = collection(db, `artifacts/${appId}/users/${userId}/tasks`);
+                const q = query(tasksRef, where('topic', '==', oldTopic));
+                const querySnapshot = await getDocs(q);
+
+                const batch = writeBatch(db);
+                querySnapshot.forEach((doc) =>
+                {
+                    batch.update(doc.ref, { topic: newTopic });
+                });
+                await batch.commit();
+            } catch (e)
+            {
+                console.error("Error updating topic name: ", e);
+            }
+        };
+
+        // Initialize Firebase and set up authentication
+        const setupFirebase = async () =>
+        {
+            try
+            {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                onAuthStateChanged(auth, async (user) =>
+                {
+                    if (user)
+                    {
+                        userId = user.uid;
+                        userIdDisplay.textContent = `User ID: ${userId}`;
+                        isAuthReady = true;
+                        listenForTasks();
+                    } else
+                    {
+                        if (initialAuthToken)
+                        {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else
+                        {
+                            await signInAnonymously(auth);
+                        }
+                    }
+                });
+            } catch (e)
+            {
+                console.error("Error setting up Firebase:", e);
+                userIdDisplay.textContent = 'Auth Error: Check console for details.';
+            }
+        };
+
+        const listenForTasks = () =>
+        {
+            if (!isAuthReady)
+            {
+                console.error("Firebase not ready. Cannot listen for tasks.");
+                return;
+            }
+            loadingIndicator.classList.remove('hidden');
+            const q = collection(db, `artifacts/${appId}/users/${userId}/tasks`);
+
+            onSnapshot(q, (snapshot) =>
+            {
+                loadingIndicator.classList.add('hidden');
+                allTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                const tasksByTopic = allTasks.reduce((acc, task) =>
+                {
+                    const topic = task.topic || 'General';
+                    if (!acc[topic])
+                    {
+                        acc[topic] = [];
+                    }
+                    acc[topic].push(task);
+                    return acc;
+                }, {});
+
+                renderTopicCards(tasksByTopic);
+                updateProgressBar(allTasks);
+
+                if (currentTopic)
+                {
+                    let tasksToRender = [];
+                    if (currentTopic === 'Today\'s Tasks')
+                    {
+                        tasksToRender = allTasks.filter(task => task.dueDate === TODAY_DATE);
+                    } else
+                    {
+                        tasksToRender = tasksByTopic[currentTopic] || [];
+                    }
+                    const sortedTasks = sortTasksByDueDate(tasksToRender);
+                    renderTasks(sortedTasks);
+                    updateProgressBar(sortedTasks);
+                }
+            }, (error) =>
+            {
+                console.error("Error listening to Firestore: ", error);
+                loadingIndicator.classList.add('hidden');
+                topicList.innerHTML = `<p class="text-red-500 text-center">Failed to load topics.</p>`;
+            });
+        };
+
+        const addTask = async () =>
+        {
+            const taskText = taskInput.value.trim();
+            const taskDueDateValue = taskDueDate.value;
+            const topic = currentTopic || 'General';
+            if (taskText === "")
+            {
+                return;
+            }
+
+            if (!isAuthReady)
+            {
+                console.error("Firebase not ready. Cannot add task.");
+                return;
+            }
+
+            try
+            {
+                await addDoc(collection(db, `artifacts/${appId}/users/${userId}/tasks`), {
+                    text: taskText,
+                    completed: false,
+                    dueDate: taskDueDateValue,
+                    topic: topic,
+                    createdAt: new Date()
+                });
+                taskInput.value = "";
+                taskDueDate.value = "";
+            } catch (e)
+            {
+                console.error("Error adding document: ", e);
+            }
+        };
+
+        const addTopic = async () =>
+        {
+            const topicText = topicInput.value.trim();
+            if (topicText === "")
+            {
+                return;
+            }
+
+            if (!isAuthReady)
+            {
+                console.error("Firebase not ready. Cannot add topic.");
+                return;
+            }
+
+            try
+            {
+                await addDoc(collection(db, `artifacts/${appId}/users/${userId}/tasks`), {
+                    text: `New task for topic: ${topicText}`,
+                    completed: false,
+                    dueDate: '',
+                    topic: topicText,
+                    createdAt: new Date()
+                });
+                topicInput.value = "";
+            } catch (e)
+            {
+                console.error("Error adding document: ", e);
+            }
+        };
+
+        const deleteTask = async (taskId) =>
+        {
+            if (!isAuthReady)
+            {
+                console.error("Firebase not ready. Cannot delete task.");
+                return;
+            }
+            try
+            {
+                await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/tasks`, taskId));
+            } catch (e)
+            {
+                console.error("Error deleting document: ", e);
+            }
+        };
+
+        const toggleTask = async (taskId, currentStatus) =>
+        {
+            if (!isAuthReady)
+            {
+                console.error("Firebase not ready. Cannot toggle task.");
+                return;
+            }
+            try
+            {
+                await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/tasks`, taskId), {
+                    completed: !currentStatus
+                });
+            } catch (e)
+            {
+                console.error("Error updating document: ", e);
+            }
+        };
+
+        // ---- LLM-Powered Functions ----
+        const generatePlan = async () =>
+        {
+            const goalText = planInput.value.trim();
+            if (goalText === "")
+            {
+                showModal('Error', 'Please enter a goal to generate a plan.', () => { });
+                return;
+            }
+
+            loadingIndicator.classList.remove('hidden');
+            generatePlanBtn.disabled = true;
+            planInput.disabled = true;
+
+            const prompt = `Generate a study plan to achieve the goal: "${goalText}". The plan should be a JSON array of objects. Each object must have a "task" string. The response must not contain any other text, explanations, or code blocks.`;
+
+            try
+            {
+                const payload = {
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "ARRAY",
+                            items: {
+                                type: "OBJECT",
+                                properties: {
+                                    "task": { "type": "STRING" }
+                                }
+                            }
+                        }
+                    }
+                };
+
+                const response = await fetch(API_URL + API_KEY, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (jsonText)
+                {
+                    const planSteps = JSON.parse(jsonText);
+                    let currentDate = new Date();
+                    for (const step of planSteps)
+                    {
+                        if (step.task)
+                        {
+                            const dueDate = currentDate.toISOString().slice(0, 10);
+                            await addDoc(collection(db, `artifacts/${appId}/users/${userId}/tasks`), {
+                                text: step.task,
+                                completed: false,
+                                dueDate: dueDate,
+                                topic: planInput.value.trim() || 'General',
+                                createdAt: new Date()
+                            });
+                            currentDate.setDate(currentDate.getDate() + 1);
+                        }
+                    }
+                    planInput.value = "";
+                } else
+                {
+                    console.error("API response error:", result);
+                    showModal('Error', 'Could not generate a plan. Please try again.', () => { });
+                }
+            } catch (e)
+            {
+                console.error("Error generating plan:", e);
+                showModal('Error', 'An unexpected error occurred. Please try again.', () => { });
+            } finally
+            {
+                loadingIndicator.classList.add('hidden');
+                generatePlanBtn.disabled = false;
+                planInput.disabled = false;
+            }
+        };
+
+        const summarizeTasks = async () =>
+        {
+            if (!isAuthReady)
+            {
+                showModal('Error', 'Please wait for Firebase to load before summarizing tasks.', () => { });
+                return;
+            }
+
+            loadingIndicator.classList.remove('hidden');
+            summarizeBtn.disabled = true;
+
+            if (allTasks.length === 0)
+            {
+                showModal('No Tasks', 'There are no tasks to summarize yet!', () => { });
+                loadingIndicator.classList.add('hidden');
+                summarizeBtn.disabled = false;
+                return;
+            }
+
+            const taskListForPrompt = allTasks.map(task => `${task.completed ? '[COMPLETE]' : '[INCOMPLETE]'} ${task.text} ${task.dueDate ? `(Due: ${task.dueDate})` : ''} (Topic: ${task.topic || 'General'})`).join('\n');
+            const prompt = `Summarize the following list of to-do tasks. Do not use conversational language or pleasantries. Only provide the summary as a single paragraph.
+
+            ${taskListForPrompt}
+            `;
+
+            try
+            {
+                const payload = {
+                    contents: [{ parts: [{ text: prompt }] }]
+                };
+
+                const response = await fetch(API_URL + API_KEY, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const summaryText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (summaryText)
+                {
+                    summaryOutput.textContent = summaryText;
+                    summaryOutput.classList.remove('hidden');
+                } else
+                {
+                    console.error("API response error:", result);
+                    summaryOutput.textContent = "Could not generate a summary. Please try again.";
+                }
+            } catch (e)
+            {
+                console.error("Error summarizing tasks:", e);
+                summaryOutput.textContent = "An unexpected error occurred. Please try again.";
+            } finally
+            {
+                loadingIndicator.classList.add('hidden');
+                summarizeBtn.disabled = false;
+            }
+        };
+
+        // Event listeners
+        addTaskBtn.addEventListener('click', addTask);
+        addTopicBtn.addEventListener('click', addTopic);
+        summarizeBtn.addEventListener('click', summarizeTasks);
+        generatePlanBtn.addEventListener('click', generatePlan);
+        backToTopicsBtn.addEventListener('click', showTopicsView);
+        showTodayBtn.addEventListener('click', showTodaysTasks);
+
+        editTopicTitleBtn.addEventListener('click', () =>
+        {
+            const oldTopic = currentTopicTitle.textContent;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = oldTopic;
+            input.className = 'flex-grow rounded-md px-2 py-1 text-2xl font-semibold text-gray-800 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500';
+
+            currentTopicTitle.replaceWith(input);
+            input.focus();
+
+            const saveEdit = async () =>
+            {
+                const newTopic = input.value.trim();
+                if (newTopic === '' || newTopic === oldTopic)
+                {
+                    input.replaceWith(currentTopicTitle);
+                    return;
+                }
+
+                await updateTopicName(oldTopic, newTopic);
+
+                currentTopic = newTopic;
+                currentTopicTitle.textContent = newTopic;
+                input.replaceWith(currentTopicTitle);
+
+                const tasksToRender = allTasks.filter(task => task.topic === newTopic);
+                const sortedTasks = sortTasksByDueDate(tasksToRender);
+                renderTasks(sortedTasks);
+            };
+
+            input.addEventListener('blur', saveEdit);
+            input.addEventListener('keypress', (e) =>
+            {
+                if (e.key === 'Enter')
+                {
+                    saveEdit();
+                }
+            });
+        });
+
+        taskInput.addEventListener('keypress', (e) =>
+        {
+            if (e.key === 'Enter')
+            {
+                addTask();
+            }
+        });
+        topicInput.addEventListener('keypress', (e) =>
+        {
+            if (e.key === 'Enter')
+            {
+                addTopic();
+            }
+        });
+        planInput.addEventListener('keypress', (e) =>
+        {
+            if (e.key === 'Enter')
+            {
+                generatePlan();
+            }
+        });
+
+        // Start the application
+        setupFirebase();
+    </script>
+</body>
+
+</html>
